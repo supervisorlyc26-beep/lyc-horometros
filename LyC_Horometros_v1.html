@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f5f7fa">
+<title>LyC Horómetros - Control Montacargas</title>
+<link rel="manifest" href="manifest_horometros.json">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #f0f2f5;
+  --border: #d8dde6;
+  --border-focus: #3b82f6;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --text-muted: #8896ab;
+  --accent-blue: #3b82f6;
+  --accent-green: #10b981;
+  --accent-orange: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-purple: #8b5cf6;
+  --accent-cyan: #0891b2;
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.header {
+  background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-logo { display: flex; align-items: center; gap: 10px; }
+.header-logo .icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.header-logo h1 { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+.header-logo .sub { font-size: 10px; color: var(--accent-cyan); font-weight: 400; letter-spacing: 2px; }
+.header-user { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+.header-user .avatar {
+  width: 32px; height: 32px; background: var(--accent-blue); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: white;
+}
+.btn-logout {
+  background: none; border: 1px solid var(--border); color: var(--text-secondary);
+  padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 11px; transition: var(--transition);
+}
+.btn-logout:hover { border-color: var(--accent-red); color: var(--accent-red); }
+.screen { display: none; padding: 16px; max-width: 600px; margin: 0 auto; padding-bottom: 50px; }
+.screen.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.login-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; padding: 20px; }
+.login-box {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px;
+  padding: 40px 30px; width: 100%; max-width: 400px; box-shadow: var(--shadow);
+}
+.login-box .logo-big { text-align: center; margin-bottom: 30px; }
+.login-box .logo-big .icon-big {
+  width: 64px; height: 64px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  border-radius: 18px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 32px; margin-bottom: 12px;
+}
+.login-box .logo-big h2 { font-family: 'JetBrains Mono', monospace; font-size: 18px; letter-spacing: 2px; }
+.login-box .logo-big p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;
+}
+.form-group select, .form-group input {
+  width: 100%; padding: 12px 14px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-primary); font-family: 'DM Sans', sans-serif;
+  font-size: 15px; transition: var(--transition); outline: none;
+}
+.form-group select:focus, .form-group input:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.form-group select { cursor: pointer; }
+.form-group select option { background: #ffffff; color: var(--text-primary); }
+.form-group input[type="number"] { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; }
+.btn {
+  width: 100%; padding: 14px; border: none; border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary { background: linear-gradient(135deg, var(--accent-blue), #2563eb); color: white; }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59,130,246,0.3); }
+.btn-primary:active { transform: translateY(0); }
+.btn-success { background: linear-gradient(135deg, var(--accent-green), #059669); color: white; }
+.btn-success:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(16,185,129,0.3); }
+.btn-orange { background: linear-gradient(135deg, var(--accent-orange), #d97706); color: white; }
+.btn-orange:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(245,158,11,0.3); }
+.btn-danger { background: linear-gradient(135deg, var(--accent-red), #dc2626); color: white; }
+.btn-sm { padding: 8px 14px; font-size: 13px; width: auto; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+.btn-outline:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+.menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.menu-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px 16px; text-align: center; cursor: pointer; transition: var(--transition);
+  position: relative; overflow: hidden;
+}
+.menu-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 16px 16px 0 0; }
+.menu-card.blue::before { background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); }
+.menu-card.green::before { background: linear-gradient(90deg, var(--accent-green), #34d399); }
+.menu-card.orange::before { background: linear-gradient(90deg, var(--accent-orange), #fbbf24); }
+.menu-card.purple::before { background: linear-gradient(90deg, var(--accent-purple), #a78bfa); }
+.menu-card.red::before { background: linear-gradient(90deg, var(--accent-red), #f87171); }
+.menu-card:hover { transform: translateY(-3px); border-color: var(--border-focus); box-shadow: var(--shadow); }
+.menu-card .card-icon { font-size: 32px; margin-bottom: 10px; }
+.menu-card .card-title { font-weight: 600; font-size: 13px; }
+.menu-card .card-desc { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.menu-card.full-width { grid-column: 1 / -1; }
+.section-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.section-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+.back-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+  cursor: pointer; color: var(--text-secondary); font-size: 13px; font-weight: 500;
+}
+.back-row:hover { color: var(--accent-blue); }
+.admin-list { margin-top: 12px; }
+.admin-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 8px; transition: var(--transition);
+}
+.admin-item .item-name { font-weight: 500; font-size: 14px; }
+.admin-item .item-status { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
+.admin-item .item-status.active { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+.admin-item .item-status.inactive { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+.admin-item-actions { display: flex; gap: 6px; }
+.admin-item-actions button {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 14px;
+  transition: var(--transition); display: flex; align-items: center; justify-content: center;
+}
+.admin-item-actions button:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+.admin-item-actions button.del:hover { border-color: var(--accent-red); color: var(--accent-red); }
+.add-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.add-row input, .add-row select {
+  flex: 1; min-width: 80px; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-primary); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none;
+}
+.add-row input:focus, .add-row select:focus { border-color: var(--accent-blue); }
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 20px; font-size: 14px; font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12); z-index: 1000;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; gap: 8px;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: var(--accent-green); }
+.toast.error { border-color: var(--accent-red); }
+.history-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+.history-table th {
+  background: var(--bg-input); padding: 10px 8px; text-align: left; font-weight: 600;
+  color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.history-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); }
+.history-table tr:hover td { background: rgba(59,130,246,0.05); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.badge-a { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+.badge-b { background: rgba(139,92,246,0.15); color: var(--accent-purple); }
+.badge-c { background: rgba(6,182,212,0.15); color: var(--accent-cyan); }
+.badge-gas { background: rgba(245,158,11,0.15); color: var(--accent-orange); }
+.mono { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+.tabs { display: flex; gap: 4px; background: var(--bg-input); border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+.tab {
+  flex: 1; padding: 8px 12px; border: none; background: transparent; color: var(--text-muted);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+  border-radius: 8px; transition: var(--transition);
+}
+.tab.active { background: var(--accent-blue); color: white; }
+.date-filter { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.date-filter input[type="date"] {
+  padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-primary); font-family: 'DM Sans', sans-serif;
+  font-size: 14px; outline: none;
+}
+.date-filter input[type="date"]:focus { border-color: var(--accent-blue); }
+@media (max-width: 400px) { .menu-grid { grid-template-columns: 1fr; } .header-logo h1 { font-size: 12px; } }
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  z-index: 200; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+}
+.modal h3 { font-size: 16px; margin-bottom: 16px; }
+.modal .form-group { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- ==================== LOGIN ==================== -->
+<div class="screen active" id="screenLogin">
+  <div class="login-container">
+    <div class="login-box">
+      <div class="logo-big">
+        <div class="icon-big">🏗️</div>
+        <h2>LYC HORÓMETROS</h2>
+        <p>Control de Montacargas</p>
+      </div>
+      <div class="form-group">
+        <label>Selecciona tu nombre</label>
+        <select id="loginUser"><option value="">-- Seleccionar --</option></select>
+      </div>
+      <div class="form-group">
+        <label>PIN de acceso</label>
+        <input type="password" id="loginPin" placeholder="Ingresa tu PIN" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MENU ==================== -->
+<div class="screen" id="screenMenu">
+  <div class="header" style="position:relative; margin:-16px -16px 16px -16px; padding:12px 16px;">
+    <div class="header-logo">
+      <div class="icon">🏗️</div>
+      <div><h1>LYC HORÓMETROS</h1><div class="sub">LONCCOS Y CCALAS</div></div>
+    </div>
+    <div class="header-user">
+      <span id="menuUserName"></span>
+      <div class="avatar" id="menuUserAvatar"></div>
+      <button class="btn-logout" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+  <div class="section-title">¿Qué deseas registrar?</div>
+  <div class="section-subtitle">Selecciona una opción</div>
+  <div class="menu-grid">
+    <div class="menu-card blue" onclick="goTo('screenInicio')">
+      <div class="card-icon">▶️</div>
+      <div class="card-title">Inicio de Turno</div>
+      <div class="card-desc">Registrar horómetro inicial</div>
+    </div>
+    <div class="menu-card green" onclick="goTo('screenFin')">
+      <div class="card-icon">⏹️</div>
+      <div class="card-title">Fin de Turno</div>
+      <div class="card-desc">Registrar horómetro final</div>
+    </div>
+    <div class="menu-card orange" onclick="goTo('screenGas')">
+      <div class="card-icon">⛽</div>
+      <div class="card-title">Recarga de Gas</div>
+      <div class="card-desc">Registrar horómetro de recarga</div>
+    </div>
+    <div class="menu-card purple" onclick="goTo('screenHistorial')">
+      <div class="card-icon">📋</div>
+      <div class="card-title">Historial</div>
+      <div class="card-desc">Ver registros por fecha</div>
+    </div>
+    <div class="menu-card red full-width" id="menuAdminCard" style="display:none" onclick="goTo('screenAdmin')">
+      <div class="card-icon">⚙️</div>
+      <div class="card-title">Panel Administrador</div>
+      <div class="card-desc">Gestionar usuarios, montacargas y exportar</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== INICIO DE TURNO ==================== -->
+<div class="screen" id="screenInicio">
+  <div class="back-row" onclick="goTo('screenMenu')">← Volver al menú</div>
+  <div class="section-title">▶️ Inicio de Turno</div>
+  <div class="section-subtitle">Registra el horómetro inicial del montacargas</div>
+  <div class="form-group">
+    <label>Turno</label>
+    <select id="inicioTurno"><option value="">-- Seleccionar --</option><option value="A">Turno A</option><option value="B">Turno B</option><option value="C">Turno C</option></select>
+  </div>
+  <div class="form-group">
+    <label>Montacargas</label>
+    <select id="inicioMtc"><option value="">-- Seleccionar --</option></select>
+  </div>
+  <div class="form-group">
+    <label>Horómetro Inicio</label>
+    <input type="number" id="inicioHorometro" placeholder="Ej: 12345.6" step="0.1" min="0" inputmode="decimal">
+  </div>
+  <button class="btn btn-primary" onclick="guardarInicio()">Guardar Inicio de Turno</button>
+</div>
+
+<!-- ==================== FIN DE TURNO ==================== -->
+<div class="screen" id="screenFin">
+  <div class="back-row" onclick="goTo('screenMenu')">← Volver al menú</div>
+  <div class="section-title">⏹️ Fin de Turno</div>
+  <div class="section-subtitle">Registra el horómetro final del montacargas</div>
+  <div class="form-group">
+    <label>Turno</label>
+    <select id="finTurno"><option value="">-- Seleccionar --</option><option value="A">Turno A</option><option value="B">Turno B</option><option value="C">Turno C</option></select>
+  </div>
+  <div class="form-group">
+    <label>Montacargas</label>
+    <select id="finMtc"><option value="">-- Seleccionar --</option></select>
+  </div>
+  <div class="form-group">
+    <label>Horómetro Final</label>
+    <input type="number" id="finHorometro" placeholder="Ej: 12353.2" step="0.1" min="0" inputmode="decimal">
+  </div>
+  <button class="btn btn-success" onclick="guardarFin()">Guardar Fin de Turno</button>
+</div>
+
+<!-- ==================== RECARGA DE GAS ==================== -->
+<div class="screen" id="screenGas">
+  <div class="back-row" onclick="goTo('screenMenu')">← Volver al menú</div>
+  <div class="section-title">⛽ Recarga de Gas</div>
+  <div class="section-subtitle">Registra el horómetro al momento de recargar el balón</div>
+  <div class="form-group">
+    <label>Turno</label>
+    <select id="gasTurno"><option value="">-- Seleccionar --</option><option value="A">Turno A</option><option value="B">Turno B</option><option value="C">Turno C</option></select>
+  </div>
+  <div class="form-group">
+    <label>Montacargas</label>
+    <select id="gasMtc"><option value="">-- Seleccionar --</option></select>
+  </div>
+  <div class="form-group">
+    <label>Horómetro al Recargar</label>
+    <input type="number" id="gasHorometro" placeholder="Ej: 12350.0" step="0.1" min="0" inputmode="decimal">
+  </div>
+  <div class="form-group">
+    <label>Observación (opcional)</label>
+    <input type="text" id="gasObs" placeholder="Ej: Balón medio lleno">
+  </div>
+  <button class="btn btn-orange" onclick="guardarGas()">Guardar Recarga de Gas</button>
+</div>
+
+<!-- ==================== HISTORIAL ==================== -->
+<div class="screen" id="screenHistorial">
+  <div class="back-row" onclick="goTo('screenMenu')">← Volver al menú</div>
+  <div class="section-title">📋 Historial de Registros</div>
+  <div class="section-subtitle" id="histFecha"></div>
+
+  <div class="date-filter">
+    <input type="date" id="histDate" onchange="loadHistorial()">
+    <button class="btn btn-primary btn-sm" onclick="histHoy()">Hoy</button>
+    <button class="btn btn-outline btn-sm" onclick="exportExcel()" id="btnExport">📥 Exportar Excel</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchHistTab('turnos', this)">Horómetros</button>
+    <button class="tab" onclick="switchHistTab('gas', this)">Recargas Gas</button>
+  </div>
+
+  <div id="histTurnos" style="overflow-x:auto;"></div>
+  <div id="histGas" style="overflow-x:auto; display:none;"></div>
+</div>
+
+<!-- ==================== ADMIN ==================== -->
+<div class="screen" id="screenAdmin">
+  <div class="back-row" onclick="goTo('screenMenu')">← Volver al menú</div>
+  <div class="section-title">⚙️ Panel Administrador</div>
+  <div class="section-subtitle">Gestión del sistema</div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchAdminTab('usuarios', this)">Usuarios</button>
+    <button class="tab" onclick="switchAdminTab('montacargas', this)">Montacargas</button>
+  </div>
+
+  <div id="adminUsuarios">
+    <div class="add-row">
+      <input type="text" id="addUserName" placeholder="Nombre completo" style="text-transform:uppercase">
+      <input type="text" id="addUserPin" placeholder="PIN" maxlength="6" style="width:80px;" inputmode="numeric">
+      <select id="addUserRole" style="width:100px; padding:10px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-size:13px;">
+        <option value="user">Usuario</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="addUser()">+ Agregar Usuario</button>
+    <div class="admin-list" id="userList"></div>
+  </div>
+
+  <div id="adminMontacargas" style="display:none;">
+    <div class="add-row">
+      <input type="text" id="addMtcPlaca" placeholder="Placa / Código" style="text-transform:uppercase">
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="addMontacargas()">+ Agregar Montacargas</button>
+    <div class="admin-list" id="mtcList"></div>
+  </div>
+</div>
+
+<!-- ===== CRÉDITOS ===== -->
+<div style="position:fixed; bottom:0; left:0; right:0; text-align:center; padding:8px 12px; font-size:11px; color:var(--text-muted); font-family:'DM Sans',sans-serif; letter-spacing:0.5px; background:linear-gradient(transparent, var(--bg-primary) 40%); pointer-events:none; z-index:50;">
+  Elaborado por <span style="color:var(--accent-blue); font-weight:600;">Rodrigo Guillén</span> · Lonccos y Ccalas S.A.C.
+</div>
+
+<!-- ==================== FIREBASE ==================== -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<script>
+// =====================================================
+// FIREBASE CONFIG — REEMPLAZAR CON TUS DATOS REALES
+// =====================================================
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+
+let db = null;
+let useFirebase = false;
+
+try {
+  if (firebaseConfig.apiKey !== "TU_API_KEY") {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    useFirebase = true;
+  }
+} catch(e) { console.warn('Firebase no disponible, usando modo local'); }
+
+// =====================================================
+// STORAGE LAYER
+// =====================================================
+const LS = {
+  get(key) { try { return JSON.parse(localStorage.getItem('lyc_horo_' + key)) || []; } catch { return []; } },
+  set(key, data) { localStorage.setItem('lyc_horo_' + key, JSON.stringify(data)); },
+  genId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6); }
+};
+
+const DB = {
+  async getAll(collection) {
+    if (useFirebase) {
+      const snap = await db.collection(collection).get();
+      const arr = []; snap.forEach(doc => arr.push({ id: doc.id, ...doc.data() })); return arr;
+    }
+    return LS.get(collection);
+  },
+  async add(collection, data) {
+    if (useFirebase) {
+      const ref = await db.collection(collection).add({ ...data, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      return ref.id;
+    }
+    const id = LS.genId(); const arr = LS.get(collection); arr.push({ id, ...data }); LS.set(collection, arr); return id;
+  },
+  async update(collection, id, data) {
+    if (useFirebase) { await db.collection(collection).doc(id).update(data); return; }
+    const arr = LS.get(collection); const idx = arr.findIndex(item => item.id === id);
+    if (idx >= 0) { Object.assign(arr[idx], data); LS.set(collection, arr); }
+  },
+  async remove(collection, id) {
+    if (useFirebase) { await db.collection(collection).doc(id).delete(); return; }
+    let arr = LS.get(collection); arr = arr.filter(item => item.id !== id); LS.set(collection, arr);
+  },
+  async query(collection, filters) {
+    if (useFirebase) {
+      let q = db.collection(collection);
+      filters.forEach(f => { q = q.where(f.field, '==', f.value); });
+      const snap = await q.get(); const arr = []; snap.forEach(doc => arr.push({ id: doc.id, ...doc.data() })); return arr;
+    }
+    const arr = LS.get(collection);
+    return arr.filter(item => filters.every(f => item[f.field] === f.value));
+  }
+};
+
+// =====================================================
+// STATE & DEFAULTS
+// =====================================================
+let currentUser = null;
+let montacargasList = [];
+let usersList = [];
+let histData = { turnos: [], gas: [] }; // para exportar
+
+const DEFAULT_MTC = ['LOU192','LOU193','LOU194','LOU195','LOT237','LOT239','LOT2310','ANT233','M257'];
+const DEFAULT_ADMIN = { name: 'ADMIN', pin: '0210', role: 'admin', active: true };
+
+// =====================================================
+// INIT
+// =====================================================
+async function init() {
+  try {
+    await loadMontacargas();
+    await loadUsers();
+  } catch(e) {
+    console.error('Error en init:', e);
+    if (montacargasList.length === 0) montacargasList = DEFAULT_MTC.map((p, i) => ({ id: 'def_' + i, placa: p, active: true }));
+    if (usersList.length === 0) usersList = [{ id: 'def_admin', ...DEFAULT_ADMIN }];
+  }
+  populateLoginSelect();
+  populateMtcSelects();
+
+  // Set fecha historial a hoy
+  document.getElementById('histDate').value = todayStr();
+
+  const saved = sessionStorage.getItem('lyc_horo_user');
+  if (saved) {
+    const savedUser = JSON.parse(saved);
+    const stillValid = usersList.find(u => u.id === savedUser.id && u.active);
+    if (stillValid) { currentUser = stillValid; showMenu(); }
+    else sessionStorage.removeItem('lyc_horo_user');
+  }
+}
+
+async function loadMontacargas() {
+  montacargasList = await DB.getAll('montacargas');
+  if (montacargasList.length === 0) {
+    for (const placa of DEFAULT_MTC) {
+      const id = await DB.add('montacargas', { placa, active: true });
+      montacargasList.push({ id, placa, active: true });
+    }
+  }
+  montacargasList.sort((a, b) => a.placa.localeCompare(b.placa));
+}
+
+async function loadUsers() {
+  usersList = await DB.getAll('usuarios');
+  if (usersList.length === 0) {
+    const id = await DB.add('usuarios', { ...DEFAULT_ADMIN });
+    usersList.push({ id, ...DEFAULT_ADMIN });
+  } else {
+    const admin = usersList.find(u => u.name === 'ADMIN');
+    if (admin && admin.pin !== DEFAULT_ADMIN.pin) {
+      admin.pin = DEFAULT_ADMIN.pin;
+      await DB.update('usuarios', admin.id, { pin: DEFAULT_ADMIN.pin });
+    }
+  }
+  usersList.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function populateLoginSelect() {
+  const sel = document.getElementById('loginUser');
+  sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+  usersList.filter(u => u.active).forEach(u => { sel.innerHTML += `<option value="${u.id}">${u.name}</option>`; });
+}
+
+function populateMtcSelects() {
+  const ids = ['inicioMtc', 'finMtc', 'gasMtc'];
+  const activeMtc = montacargasList.filter(m => m.active !== false);
+  ids.forEach(id => {
+    const sel = document.getElementById(id); if (!sel) return;
+    sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+    activeMtc.forEach(m => { sel.innerHTML += `<option value="${m.placa}">${m.placa}</option>`; });
+  });
+}
+
+// =====================================================
+// LOGIN / LOGOUT
+// =====================================================
+function doLogin() {
+  const userId = document.getElementById('loginUser').value;
+  const pin = document.getElementById('loginPin').value;
+  if (!userId) return showToast('Selecciona tu nombre', 'error');
+  if (!pin) return showToast('Ingresa tu PIN', 'error');
+  const user = usersList.find(u => u.id === userId);
+  if (!user) return showToast('Usuario no encontrado', 'error');
+  if (!user.active) return showToast('Tu acceso ha sido desactivado. Contacta al administrador.', 'error');
+  if (user.pin !== pin) return showToast('PIN incorrecto', 'error');
+  currentUser = user;
+  sessionStorage.setItem('lyc_horo_user', JSON.stringify(user));
+  showMenu();
+  showToast(`Bienvenido, ${user.name}`, 'success');
+}
+
+function doLogout() {
+  currentUser = null;
+  sessionStorage.removeItem('lyc_horo_user');
+  document.getElementById('loginPin').value = '';
+  document.getElementById('loginUser').value = '';
+  goTo('screenLogin');
+}
+
+function showMenu() {
+  document.getElementById('menuUserName').textContent = currentUser.name;
+  document.getElementById('menuUserAvatar').textContent = currentUser.name.charAt(0);
+  document.getElementById('menuAdminCard').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  goTo('screenMenu');
+}
+
+function goTo(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  if (screenId === 'screenHistorial') loadHistorial();
+  if (screenId === 'screenAdmin') { renderUserList(); renderMtcList(); }
+}
+
+// =====================================================
+// REGISTRO — INICIO (con validación duplicados)
+// =====================================================
+async function guardarInicio() {
+  const turno = document.getElementById('inicioTurno').value;
+  const mtc = document.getElementById('inicioMtc').value;
+  const horo = parseFloat(document.getElementById('inicioHorometro').value);
+  if (!turno) return showToast('Selecciona el turno', 'error');
+  if (!mtc) return showToast('Selecciona el montacargas', 'error');
+  if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
+
+  try {
+    // Validar duplicado
+    const existentes = await DB.query('registros_horometro', [
+      { field: 'fecha', value: todayStr() },
+      { field: 'montacargas', value: mtc },
+      { field: 'turno', value: turno },
+      { field: 'tipo', value: 'inicio' }
+    ]);
+    if (existentes.length > 0) {
+      return showToast(`Ya existe un inicio para ${mtc} en turno ${turno} hoy (${existentes[0].horometro}). Registre el fin.`, 'error');
+    }
+
+    await DB.add('registros_horometro', {
+      tipo: 'inicio', turno, montacargas: mtc, horometro: horo,
+      usuario: currentUser.name, fecha: todayStr(), createdAt: new Date().toISOString()
+    });
+    showToast(`✓ Inicio registrado: ${mtc} = ${horo}`, 'success');
+    document.getElementById('inicioHorometro').value = '';
+    document.getElementById('inicioMtc').value = '';
+    document.getElementById('inicioTurno').value = '';
+  } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
+}
+
+// =====================================================
+// REGISTRO — FIN (con validación duplicados)
+// =====================================================
+async function guardarFin() {
+  const turno = document.getElementById('finTurno').value;
+  const mtc = document.getElementById('finMtc').value;
+  const horo = parseFloat(document.getElementById('finHorometro').value);
+  if (!turno) return showToast('Selecciona el turno', 'error');
+  if (!mtc) return showToast('Selecciona el montacargas', 'error');
+  if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
+
+  try {
+    // Validar duplicado fin
+    const finesExist = await DB.query('registros_horometro', [
+      { field: 'fecha', value: todayStr() },
+      { field: 'montacargas', value: mtc },
+      { field: 'turno', value: turno },
+      { field: 'tipo', value: 'fin' }
+    ]);
+    if (finesExist.length > 0) {
+      return showToast(`Ya existe un fin para ${mtc} en turno ${turno} hoy (${finesExist[0].horometro}).`, 'error');
+    }
+
+    // Validar contra inicio
+    const inicios = await DB.query('registros_horometro', [
+      { field: 'fecha', value: todayStr() },
+      { field: 'montacargas', value: mtc },
+      { field: 'turno', value: turno },
+      { field: 'tipo', value: 'inicio' }
+    ]);
+    if (inicios.length > 0 && horo < inicios[inicios.length - 1].horometro) {
+      return showToast(`El horómetro final (${horo}) no puede ser menor al inicio (${inicios[inicios.length - 1].horometro})`, 'error');
+    }
+
+    await DB.add('registros_horometro', {
+      tipo: 'fin', turno, montacargas: mtc, horometro: horo,
+      usuario: currentUser.name, fecha: todayStr(), createdAt: new Date().toISOString()
+    });
+    const horas = inicios.length > 0 ? (horo - inicios[inicios.length - 1].horometro).toFixed(2) : '?';
+    showToast(`✓ Fin registrado: ${mtc} = ${horo} (${horas} hrs uso)`, 'success');
+    document.getElementById('finHorometro').value = '';
+    document.getElementById('finMtc').value = '';
+    document.getElementById('finTurno').value = '';
+  } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
+}
+
+// =====================================================
+// REGISTRO — RECARGA DE GAS
+// =====================================================
+async function guardarGas() {
+  const turno = document.getElementById('gasTurno').value;
+  const mtc = document.getElementById('gasMtc').value;
+  const horo = parseFloat(document.getElementById('gasHorometro').value);
+  const obs = document.getElementById('gasObs').value.trim();
+  if (!turno) return showToast('Selecciona el turno', 'error');
+  if (!mtc) return showToast('Selecciona el montacargas', 'error');
+  if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
+
+  try {
+    await DB.add('registros_gas', {
+      montacargas: mtc, turno, horometro: horo, observacion: obs,
+      usuario: currentUser.name, fecha: todayStr(), createdAt: new Date().toISOString()
+    });
+    showToast(`✓ Recarga registrada: ${mtc} = ${horo}`, 'success');
+    document.getElementById('gasHorometro').value = '';
+    document.getElementById('gasObs').value = '';
+    document.getElementById('gasMtc').value = '';
+    document.getElementById('gasTurno').value = '';
+  } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
+}
+
+// =====================================================
+// HISTORIAL (con filtro por fecha)
+// =====================================================
+function histHoy() {
+  document.getElementById('histDate').value = todayStr();
+  loadHistorial();
+}
+
+async function loadHistorial() {
+  const fecha = document.getElementById('histDate').value || todayStr();
+  document.getElementById('histFecha').textContent = 'Fecha: ' + fecha;
+
+  // Horómetros
+  try {
+    const regs = await DB.query('registros_horometro', [{ field: 'fecha', value: fecha }]);
+    regs.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    histData.turnos = regs;
+
+    let rows = '';
+    regs.forEach(d => {
+      const badgeClass = d.turno === 'A' ? 'badge-a' : d.turno === 'B' ? 'badge-b' : 'badge-c';
+      const hora = d.createdAt ? new Date(d.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '--';
+      rows += `<tr>
+        <td>${hora}</td>
+        <td><span class="badge ${badgeClass}">${d.turno}</span></td>
+        <td class="mono">${d.montacargas}</td>
+        <td>${d.tipo === 'inicio' ? '▶️' : '⏹️'} ${d.tipo.toUpperCase()}</td>
+        <td class="mono">${d.horometro}</td>
+        <td>${d.usuario}</td>
+      </tr>`;
+    });
+    document.getElementById('histTurnos').innerHTML = rows
+      ? `<table class="history-table"><thead><tr><th>Hora</th><th>Turno</th><th>MTC</th><th>Tipo</th><th>Horómetro</th><th>Registró</th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<p style="color:var(--text-muted);text-align:center;padding:20px;">Sin registros para esta fecha</p>';
+  } catch(e) { document.getElementById('histTurnos').innerHTML = '<p style="color:var(--accent-red);">Error cargando datos</p>'; }
+
+  // Gas
+  try {
+    const gasRegs = await DB.query('registros_gas', [{ field: 'fecha', value: fecha }]);
+    gasRegs.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    histData.gas = gasRegs;
+
+    let rowsGas = '';
+    gasRegs.forEach(d => {
+      const hora = d.createdAt ? new Date(d.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '--';
+      rowsGas += `<tr>
+        <td>${hora}</td>
+        <td><span class="badge badge-gas">${d.turno}</span></td>
+        <td class="mono">${d.montacargas}</td>
+        <td class="mono">${d.horometro}</td>
+        <td>${d.observacion || '-'}</td>
+        <td>${d.usuario}</td>
+      </tr>`;
+    });
+    document.getElementById('histGas').innerHTML = rowsGas
+      ? `<table class="history-table"><thead><tr><th>Hora</th><th>Turno</th><th>MTC</th><th>Horómetro</th><th>Obs.</th><th>Registró</th></tr></thead><tbody>${rowsGas}</tbody></table>`
+      : '<p style="color:var(--text-muted);text-align:center;padding:20px;">Sin recargas para esta fecha</p>';
+  } catch(e) { document.getElementById('histGas').innerHTML = '<p style="color:var(--accent-red);">Error cargando datos</p>'; }
+}
+
+function switchHistTab(tab, btn) {
+  document.querySelectorAll('#screenHistorial .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('histTurnos').style.display = tab === 'turnos' ? 'block' : 'none';
+  document.getElementById('histGas').style.display = tab === 'gas' ? 'block' : 'none';
+}
+
+// =====================================================
+// EXPORTAR A EXCEL (CSV)
+// =====================================================
+function exportExcel() {
+  const fecha = document.getElementById('histDate').value || todayStr();
+
+  if (histData.turnos.length === 0 && histData.gas.length === 0) {
+    return showToast('No hay datos para exportar', 'error');
+  }
+
+  let csv = '\uFEFF'; // BOM para acentos en Excel
+  csv += 'CONTROL DE HORÓMETROS - LONCCOS Y CCALAS S.A.C.\n';
+  csv += 'Fecha:,' + fecha + '\n';
+  csv += 'Exportado:,' + new Date().toLocaleString('es-PE') + '\n\n';
+
+  // Horómetros
+  csv += 'REGISTROS DE HORÓMETROS\n';
+  csv += 'Hora,Turno,Montacargas,Tipo,Horómetro,Registró\n';
+  histData.turnos.forEach(d => {
+    const hora = d.createdAt ? new Date(d.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '';
+    csv += `${hora},${d.turno},${d.montacargas},${d.tipo.toUpperCase()},${d.horometro},${d.usuario}\n`;
+  });
+
+  csv += '\nRECARGAS DE GAS\n';
+  csv += 'Hora,Turno,Montacargas,Horómetro,Observación,Registró\n';
+  histData.gas.forEach(d => {
+    const hora = d.createdAt ? new Date(d.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : '';
+    csv += `${hora},${d.turno},${d.montacargas},${d.horometro},"${d.observacion || ''}",${d.usuario}\n`;
+  });
+
+  // Resumen por montacargas
+  csv += '\nRESUMEN DE HORAS POR MONTACARGAS\n';
+  csv += 'Montacargas,Turno,Horómetro Inicio,Horómetro Fin,Horas Uso\n';
+  const activeMtc = montacargasList.filter(m => m.active !== false);
+  ['A', 'B', 'C'].forEach(turno => {
+    activeMtc.forEach(m => {
+      const inicio = histData.turnos.find(r => r.montacargas === m.placa && r.turno === turno && r.tipo === 'inicio');
+      const fin = histData.turnos.find(r => r.montacargas === m.placa && r.turno === turno && r.tipo === 'fin');
+      if (inicio || fin) {
+        const hi = inicio ? inicio.horometro : '';
+        const hf = fin ? fin.horometro : '';
+        const horas = (inicio && fin) ? (fin.horometro - inicio.horometro).toFixed(2) : '';
+        csv += `${m.placa},${turno},${hi},${hf},${horas}\n`;
+      }
+    });
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `Horometros_LyC_${fecha}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showToast('✓ Archivo exportado', 'success');
+}
+
+// =====================================================
+// ADMIN — USUARIOS (con cambio de PIN)
+// =====================================================
+async function addUser() {
+  const name = document.getElementById('addUserName').value.trim().toUpperCase();
+  const pin = document.getElementById('addUserPin').value.trim();
+  const role = document.getElementById('addUserRole').value;
+  if (!name) return showToast('Ingresa el nombre', 'error');
+  if (!pin || pin.length < 3) return showToast('PIN mínimo 3 dígitos', 'error');
+  if (usersList.find(u => u.name === name)) return showToast('Ese nombre ya existe', 'error');
+
+  try {
+    const id = await DB.add('usuarios', { name, pin, role, active: true });
+    usersList.push({ id, name, pin, role, active: true });
+    usersList.sort((a, b) => a.name.localeCompare(b.name));
+    renderUserList(); populateLoginSelect();
+    document.getElementById('addUserName').value = '';
+    document.getElementById('addUserPin').value = '';
+    showToast(`Usuario ${name} agregado`, 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function toggleUser(id) {
+  const user = usersList.find(u => u.id === id);
+  if (!user) return;
+  const newState = !user.active;
+  try {
+    await DB.update('usuarios', id, { active: newState });
+    user.active = newState;
+    renderUserList(); populateLoginSelect();
+    showToast(`${user.name} ${newState ? 'activado' : 'desactivado'}`, 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+function changePin(id) {
+  const user = usersList.find(u => u.id === id);
+  if (!user) return;
+  showModal(`
+    <h3>Cambiar PIN</h3>
+    <p style="margin-bottom:12px;">Usuario: <strong>${user.name}</strong></p>
+    <div class="form-group">
+      <label>Nuevo PIN</label>
+      <input type="text" id="newPinInput" placeholder="Nuevo PIN" maxlength="6" inputmode="numeric" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:15px;outline:none;">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary btn-sm" id="modalConfirmBtn" style="flex:1;">Guardar</button>
+      <button class="btn btn-outline btn-sm" onclick="closeModal()" style="flex:1;">Cancelar</button>
+    </div>
+  `, null, true);
+  setTimeout(() => {
+    document.getElementById('modalConfirmBtn').onclick = async () => {
+      const newPin = document.getElementById('newPinInput').value.trim();
+      if (!newPin || newPin.length < 3) return showToast('PIN mínimo 3 dígitos', 'error');
+      try {
+        await DB.update('usuarios', id, { pin: newPin });
+        user.pin = newPin;
+        closeModal();
+        showToast(`PIN de ${user.name} actualizado`, 'success');
+      } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    };
+  }, 100);
+}
+
+async function deleteUser(id) {
+  const user = usersList.find(u => u.id === id);
+  if (!user) return;
+  if (user.name === 'ADMIN') return showToast('No puedes eliminar al ADMIN principal', 'error');
+  showModal(`
+    <h3>Confirmar</h3>
+    <p style="margin-bottom:16px;">¿Eliminar a <strong>${user.name}</strong>?<br><small style="color:var(--text-muted)">Sus registros históricos se mantienen.</small></p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger btn-sm" id="modalConfirmBtn" style="flex:1;">Sí, eliminar</button>
+      <button class="btn btn-outline btn-sm" onclick="closeModal()" style="flex:1;">Cancelar</button>
+    </div>
+  `, null, true);
+  setTimeout(() => {
+    document.getElementById('modalConfirmBtn').onclick = async () => {
+      try {
+        await DB.remove('usuarios', id);
+        usersList = usersList.filter(u => u.id !== id);
+        renderUserList(); populateLoginSelect(); closeModal();
+        showToast(`${user.name} eliminado`, 'success');
+      } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    };
+  }, 100);
+}
+
+function renderUserList() {
+  const container = document.getElementById('userList');
+  container.innerHTML = '';
+  usersList.forEach(u => {
+    container.innerHTML += `
+      <div class="admin-item">
+        <div>
+          <div class="item-name">${u.name} ${u.role === 'admin' ? '👑' : ''}</div>
+          <span class="item-status ${u.active ? 'active' : 'inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span>
+        </div>
+        <div class="admin-item-actions">
+          <button onclick="changePin('${u.id}')" title="Cambiar PIN">🔑</button>
+          <button onclick="toggleUser('${u.id}')" title="${u.active ? 'Desactivar' : 'Activar'}">${u.active ? '🚫' : '✅'}</button>
+          <button class="del" onclick="deleteUser('${u.id}')" title="Eliminar">🗑️</button>
+        </div>
+      </div>`;
+  });
+}
+
+// =====================================================
+// ADMIN — MONTACARGAS
+// =====================================================
+async function addMontacargas() {
+  const placa = document.getElementById('addMtcPlaca').value.trim().toUpperCase();
+  if (!placa) return showToast('Ingresa la placa/código', 'error');
+  if (montacargasList.find(m => m.placa === placa)) return showToast('Esa placa ya existe', 'error');
+  try {
+    const id = await DB.add('montacargas', { placa, active: true });
+    montacargasList.push({ id, placa, active: true });
+    montacargasList.sort((a, b) => a.placa.localeCompare(b.placa));
+    renderMtcList(); populateMtcSelects();
+    document.getElementById('addMtcPlaca').value = '';
+    showToast(`Montacargas ${placa} agregado`, 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function toggleMtc(id) {
+  const mtc = montacargasList.find(m => m.id === id);
+  if (!mtc) return;
+  const newState = !(mtc.active !== false);
+  try {
+    await DB.update('montacargas', id, { active: newState });
+    mtc.active = newState;
+    renderMtcList(); populateMtcSelects();
+    showToast(`${mtc.placa} ${newState ? 'activado' : 'desactivado'}`, 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function deleteMtc(id) {
+  const mtc = montacargasList.find(m => m.id === id);
+  if (!mtc) return;
+  showModal(`
+    <h3>Confirmar</h3>
+    <p style="margin-bottom:16px;">¿Eliminar montacargas <strong>${mtc.placa}</strong>?</p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger btn-sm" id="modalConfirmBtn" style="flex:1;">Sí, eliminar</button>
+      <button class="btn btn-outline btn-sm" onclick="closeModal()" style="flex:1;">Cancelar</button>
+    </div>
+  `, null, true);
+  setTimeout(() => {
+    document.getElementById('modalConfirmBtn').onclick = async () => {
+      try {
+        await DB.remove('montacargas', id);
+        montacargasList = montacargasList.filter(m => m.id !== id);
+        renderMtcList(); populateMtcSelects(); closeModal();
+        showToast(`${mtc.placa} eliminado`, 'success');
+      } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    };
+  }, 100);
+}
+
+function renderMtcList() {
+  const container = document.getElementById('mtcList');
+  container.innerHTML = '';
+  montacargasList.forEach(m => {
+    const isActive = m.active !== false;
+    container.innerHTML += `
+      <div class="admin-item">
+        <div>
+          <div class="item-name" style="font-family:'JetBrains Mono',monospace;">${m.placa}</div>
+          <span class="item-status ${isActive ? 'active' : 'inactive'}">${isActive ? 'Activo' : 'Inactivo'}</span>
+        </div>
+        <div class="admin-item-actions">
+          <button onclick="toggleMtc('${m.id}')" title="${isActive ? 'Desactivar' : 'Activar'}">${isActive ? '🚫' : '✅'}</button>
+          <button class="del" onclick="deleteMtc('${m.id}')" title="Eliminar">🗑️</button>
+        </div>
+      </div>`;
+  });
+}
+
+function switchAdminTab(tab, btn) {
+  document.querySelectorAll('#screenAdmin .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('adminUsuarios').style.display = tab === 'usuarios' ? 'block' : 'none';
+  document.getElementById('adminMontacargas').style.display = tab === 'montacargas' ? 'block' : 'none';
+}
+
+// =====================================================
+// UTILITIES
+// =====================================================
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.className = 'toast ' + type;
+  t.innerHTML = (type === 'success' ? '✅' : '❌') + ' ' + msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function showModal(html, onConfirm, raw = false) {
+  const overlay = document.getElementById('modalOverlay');
+  if (raw) {
+    document.getElementById('modalContent').innerHTML = html;
+  } else {
+    document.getElementById('modalContent').innerHTML = `
+      <h3>Confirmar</h3>
+      <p style="margin-bottom:16px;">${html}</p>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-danger btn-sm" id="modalConfirmBtn" style="flex:1;">Sí, eliminar</button>
+        <button class="btn btn-outline btn-sm" onclick="closeModal()" style="flex:1;">Cancelar</button>
+      </div>`;
+    if (onConfirm) document.getElementById('modalConfirmBtn').onclick = () => { closeModal(); onConfirm(); };
+  }
+  overlay.classList.add('show');
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+// =====================================================
+// INIT
+// =====================================================
+init();
+</script>
+</body>
+</html>

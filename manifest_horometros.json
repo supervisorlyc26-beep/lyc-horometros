@@ -1,0 +1,17 @@
+{
+  "name": "LyC Horómetros - Control Montacargas",
+  "short_name": "LyC Horómetros",
+  "description": "Control de horómetros y recargas de gas para montacargas - Lonccos y Ccalas S.A.C.",
+  "start_url": "./LyC_Horometros_v1.html",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%233b82f6'/><text x='50' y='55' font-size='50' text-anchor='middle' dominant-baseline='middle'>🏗️</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
