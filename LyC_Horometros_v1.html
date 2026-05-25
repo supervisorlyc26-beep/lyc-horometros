@@ -1093,6 +1093,7 @@ async function loadInopHistorial() {
         <td class="mono">${d.horasFuera} hrs</td>
         <td>${d.motivo || '-'}</td>
         <td>${d.usuario || '-'}</td>
+        <td><button onclick="deleteInopReg('${d.id}')" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;" title="Eliminar">🗑️</button></td>
       </tr>`;
     });
 
@@ -1116,13 +1117,34 @@ async function loadInopHistorial() {
     document.getElementById('inopHistorial').innerHTML = `
       ${inopActuales.length > 0 ? '<p style="font-weight:600;color:var(--accent-red);margin-bottom:8px;">⚠️ Actualmente inoperativos: ' + inopActuales.length + '</p>' : ''}
       <table class="history-table">
-        <thead><tr><th>MTC</th><th>Desde</th><th>Hasta</th><th>Tiempo</th><th>Motivo</th><th>Registró</th></tr></thead>
+        <thead><tr><th>MTC</th><th>Desde</th><th>Hasta</th><th>Tiempo</th><th>Motivo</th><th>Registró</th><th></th></tr></thead>
         <tbody>${rowsActuales}${rows}</tbody>
       </table>
       ${(rowsActuales + rows) === '' ? '<p style="color:var(--text-muted);text-align:center;padding:20px;">Sin registros de inoperatividad</p>' : ''}`;
   } catch(e) {
     document.getElementById('inopHistorial').innerHTML = '<p style="color:var(--accent-red);">Error cargando historial</p>';
   }
+}
+
+async function deleteInopReg(id) {
+  showModal(`
+    <h3>Confirmar</h3>
+    <p style="margin-bottom:16px;">¿Eliminar este registro de inoperatividad?</p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-danger btn-sm" id="modalConfirmBtn" style="flex:1;">Sí, eliminar</button>
+      <button class="btn btn-outline btn-sm" onclick="closeModal()" style="flex:1;">Cancelar</button>
+    </div>
+  `, null, true);
+  setTimeout(() => {
+    document.getElementById('modalConfirmBtn').onclick = async () => {
+      try {
+        await DB.remove('registros_inoperativo', id);
+        closeModal();
+        showToast('Registro eliminado', 'success');
+        loadInopHistorial();
+      } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    };
+  }, 100);
 }
 
 function switchAdminTab(tab, btn) {
