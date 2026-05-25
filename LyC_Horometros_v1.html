@@ -256,6 +256,10 @@ body {
   </div>
   <div class="section-title">¿Qué deseas registrar?</div>
   <div class="section-subtitle">Selecciona una opción</div>
+  <div id="activeTurnIndicator" style="display:none; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:13px;">
+    <span style="font-weight:600; color:var(--accent-blue);">Turno activo:</span>
+    <span id="activeTurnText" class="mono" style="color:var(--text-primary);"></span>
+  </div>
   <div class="menu-grid">
     <div class="menu-card blue" onclick="goTo('screenInicio')">
       <div class="card-icon">▶️</div>
@@ -597,7 +601,46 @@ function showMenu() {
   document.getElementById('menuUserName').textContent = currentUser.name;
   document.getElementById('menuUserAvatar').textContent = currentUser.name.charAt(0);
   document.getElementById('menuAdminCard').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  loadActiveTurn();
   goTo('screenMenu');
+}
+
+// Detectar turno activo del usuario (inicio sin fin hoy)
+let activeTurn = null; // { turno, montacargas }
+
+async function loadActiveTurn() {
+  activeTurn = null;
+  try {
+    // Buscar inicios del usuario hoy
+    const inicios = await DB.query('registros_horometro', [
+      { field: 'fecha', value: todayStr() },
+      { field: 'usuario', value: currentUser.name },
+      { field: 'tipo', value: 'inicio' }
+    ]);
+    // Buscar fines del usuario hoy
+    const fines = await DB.query('registros_horometro', [
+      { field: 'fecha', value: todayStr() },
+      { field: 'usuario', value: currentUser.name },
+      { field: 'tipo', value: 'fin' }
+    ]);
+    // Encontrar inicio sin fin correspondiente (mismo turno + montacargas)
+    for (const ini of inicios) {
+      const tieneFin = fines.find(f => f.turno === ini.turno && f.montacargas === ini.montacargas);
+      if (!tieneFin) {
+        activeTurn = { turno: ini.turno, montacargas: ini.montacargas, horometroInicio: ini.horometro };
+        break;
+      }
+    }
+  } catch(e) { console.warn('Error buscando turno activo:', e); }
+
+  // Mostrar indicador en menú
+  const indicator = document.getElementById('activeTurnIndicator');
+  if (activeTurn) {
+    indicator.style.display = 'block';
+    document.getElementById('activeTurnText').textContent = `Turno ${activeTurn.turno} · ${activeTurn.montacargas} · Inicio: ${activeTurn.horometroInicio}`;
+  } else {
+    indicator.style.display = 'none';
+  }
 }
 
 function goTo(screenId) {
@@ -605,6 +648,15 @@ function goTo(screenId) {
   document.getElementById(screenId).classList.add('active');
   if (screenId === 'screenHistorial') loadHistorial();
   if (screenId === 'screenAdmin') { renderUserList(); renderMtcList(); }
+  // Preseleccionar turno activo en fin y gas
+  if (screenId === 'screenFin' && activeTurn) {
+    document.getElementById('finTurno').value = activeTurn.turno;
+    document.getElementById('finMtc').value = activeTurn.montacargas;
+  }
+  if (screenId === 'screenGas' && activeTurn) {
+    document.getElementById('gasTurno').value = activeTurn.turno;
+    document.getElementById('gasMtc').value = activeTurn.montacargas;
+  }
 }
 
 // =====================================================
@@ -638,6 +690,7 @@ async function guardarInicio() {
     document.getElementById('inicioHorometro').value = '';
     document.getElementById('inicioMtc').value = '';
     document.getElementById('inicioTurno').value = '';
+    loadActiveTurn();
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }
 
@@ -684,6 +737,7 @@ async function guardarFin() {
     document.getElementById('finHorometro').value = '';
     document.getElementById('finMtc').value = '';
     document.getElementById('finTurno').value = '';
+    loadActiveTurn();
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }
 
