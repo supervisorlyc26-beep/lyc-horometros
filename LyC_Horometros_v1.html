@@ -256,6 +256,10 @@ body {
   </div>
   <div class="section-title">¿Qué deseas registrar?</div>
   <div class="section-subtitle">Selecciona una opción</div>
+  <div id="userTurnoIndicator" style="background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.2); border-radius:10px; padding:10px 14px; margin-bottom:8px; font-size:13px;">
+    <span style="font-weight:600; color:var(--accent-purple);">Tu turno:</span>
+    <span id="userTurnoText" class="mono" style="color:var(--text-primary);"></span>
+  </div>
   <div id="activeTurnIndicator" style="display:none; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:13px;">
     <span style="font-weight:600; color:var(--accent-blue);">Turno activo:</span>
     <span id="activeTurnText" class="mono" style="color:var(--text-primary);"></span>
@@ -295,8 +299,8 @@ body {
   <div class="section-title">▶️ Inicio de Turno</div>
   <div class="section-subtitle">Registra el horómetro inicial del montacargas</div>
   <div class="form-group">
-    <label>Turno</label>
-    <select id="inicioTurno"><option value="">-- Seleccionar --</option><option value="A">Turno A</option><option value="B">Turno B</option><option value="C">Turno C</option></select>
+    <label>Turno Asignado</label>
+    <div id="inicioTurnoDisplay" style="padding:12px 14px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius);font-weight:600;color:var(--accent-blue);font-size:15px;"></div>
   </div>
   <div class="form-group">
     <label>Montacargas</label>
@@ -315,8 +319,8 @@ body {
   <div class="section-title">⏹️ Fin de Turno</div>
   <div class="section-subtitle">Registra el horómetro final del montacargas</div>
   <div class="form-group">
-    <label>Turno</label>
-    <select id="finTurno"><option value="">-- Seleccionar --</option><option value="A">Turno A</option><option value="B">Turno B</option><option value="C">Turno C</option></select>
+    <label>Turno Asignado</label>
+    <div id="finTurnoDisplay" style="padding:12px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius);font-weight:600;color:var(--accent-green);font-size:15px;"></div>
   </div>
   <div class="form-group">
     <label>Montacargas</label>
@@ -335,8 +339,8 @@ body {
   <div class="section-title">⛽ Recarga de Gas</div>
   <div class="section-subtitle">Registra el horómetro al momento de recargar el balón</div>
   <div class="form-group">
-    <label>Turno</label>
-    <select id="gasTurno"><option value="">-- Seleccionar --</option><option value="A">Turno A</option><option value="B">Turno B</option><option value="C">Turno C</option></select>
+    <label>Turno Asignado</label>
+    <div id="gasTurnoDisplay" style="padding:12px 14px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius);font-weight:600;color:var(--accent-orange);font-size:15px;"></div>
   </div>
   <div class="form-group">
     <label>Montacargas</label>
@@ -390,6 +394,11 @@ body {
     <div class="add-row">
       <input type="text" id="addUserName" placeholder="Nombre completo" style="text-transform:uppercase">
       <input type="text" id="addUserPin" placeholder="PIN" maxlength="6" style="width:80px;" inputmode="numeric">
+      <select id="addUserTurno" style="width:80px; padding:10px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-size:13px;">
+        <option value="A">Turno A</option>
+        <option value="B">Turno B</option>
+        <option value="C">Turno C</option>
+      </select>
       <select id="addUserRole" style="width:100px; padding:10px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-size:13px;">
         <option value="user">Usuario</option>
         <option value="admin">Admin</option>
@@ -601,6 +610,9 @@ function showMenu() {
   document.getElementById('menuUserName').textContent = currentUser.name;
   document.getElementById('menuUserAvatar').textContent = currentUser.name.charAt(0);
   document.getElementById('menuAdminCard').style.display = currentUser.role === 'admin' ? 'block' : 'none';
+  const t = currentUser.turno || 'A';
+  const horarios = { A: '6:00am - 2:00pm', B: '2:00pm - 10:00pm', C: '10:00pm - 6:00am' };
+  document.getElementById('userTurnoText').textContent = 'Turno ' + t + ' (' + horarios[t] + ')';
   loadActiveTurn();
   goTo('screenMenu');
 }
@@ -610,34 +622,31 @@ let activeTurn = null; // { turno, montacargas }
 
 async function loadActiveTurn() {
   activeTurn = null;
+  const userTurno = currentUser.turno || 'A';
   try {
-    // Buscar inicios del usuario hoy
     const inicios = await DB.query('registros_horometro', [
       { field: 'fecha', value: todayStr() },
       { field: 'usuario', value: currentUser.name },
       { field: 'tipo', value: 'inicio' }
     ]);
-    // Buscar fines del usuario hoy
     const fines = await DB.query('registros_horometro', [
       { field: 'fecha', value: todayStr() },
       { field: 'usuario', value: currentUser.name },
       { field: 'tipo', value: 'fin' }
     ]);
-    // Encontrar inicio sin fin correspondiente (mismo turno + montacargas)
     for (const ini of inicios) {
-      const tieneFin = fines.find(f => f.turno === ini.turno && f.montacargas === ini.montacargas);
+      const tieneFin = fines.find(f => f.montacargas === ini.montacargas);
       if (!tieneFin) {
-        activeTurn = { turno: ini.turno, montacargas: ini.montacargas, horometroInicio: ini.horometro };
+        activeTurn = { turno: userTurno, montacargas: ini.montacargas, horometroInicio: ini.horometro };
         break;
       }
     }
   } catch(e) { console.warn('Error buscando turno activo:', e); }
 
-  // Mostrar indicador en menú
   const indicator = document.getElementById('activeTurnIndicator');
   if (activeTurn) {
     indicator.style.display = 'block';
-    document.getElementById('activeTurnText').textContent = `Turno ${activeTurn.turno} · ${activeTurn.montacargas} · Inicio: ${activeTurn.horometroInicio}`;
+    document.getElementById('activeTurnText').textContent = `${activeTurn.montacargas} · Inicio: ${activeTurn.horometroInicio}`;
   } else {
     indicator.style.display = 'none';
   }
@@ -648,14 +657,19 @@ function goTo(screenId) {
   document.getElementById(screenId).classList.add('active');
   if (screenId === 'screenHistorial') loadHistorial();
   if (screenId === 'screenAdmin') { renderUserList(); renderMtcList(); }
-  // Preseleccionar turno activo en fin y gas
-  if (screenId === 'screenFin' && activeTurn) {
-    document.getElementById('finTurno').value = activeTurn.turno;
-    document.getElementById('finMtc').value = activeTurn.montacargas;
+  // Mostrar turno asignado en formularios
+  const userTurno = currentUser ? (currentUser.turno || 'A') : 'A';
+  const turnoLabel = 'Turno ' + userTurno + (userTurno === 'A' ? ' (6:00am - 2:00pm)' : userTurno === 'B' ? ' (2:00pm - 10:00pm)' : ' (10:00pm - 6:00am)');
+  if (screenId === 'screenInicio') {
+    document.getElementById('inicioTurnoDisplay').textContent = turnoLabel;
   }
-  if (screenId === 'screenGas' && activeTurn) {
-    document.getElementById('gasTurno').value = activeTurn.turno;
-    document.getElementById('gasMtc').value = activeTurn.montacargas;
+  if (screenId === 'screenFin') {
+    document.getElementById('finTurnoDisplay').textContent = turnoLabel;
+    if (activeTurn) document.getElementById('finMtc').value = activeTurn.montacargas;
+  }
+  if (screenId === 'screenGas') {
+    document.getElementById('gasTurnoDisplay').textContent = turnoLabel;
+    if (activeTurn) document.getElementById('gasMtc').value = activeTurn.montacargas;
   }
 }
 
@@ -663,10 +677,9 @@ function goTo(screenId) {
 // REGISTRO — INICIO (con validación duplicados)
 // =====================================================
 async function guardarInicio() {
-  const turno = document.getElementById('inicioTurno').value;
+  const turno = currentUser.turno || 'A';
   const mtc = document.getElementById('inicioMtc').value;
   const horo = parseFloat(document.getElementById('inicioHorometro').value);
-  if (!turno) return showToast('Selecciona el turno', 'error');
   if (!mtc) return showToast('Selecciona el montacargas', 'error');
   if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
 
@@ -689,7 +702,6 @@ async function guardarInicio() {
     showToast(`✓ Inicio registrado: ${mtc} = ${horo}`, 'success');
     document.getElementById('inicioHorometro').value = '';
     document.getElementById('inicioMtc').value = '';
-    document.getElementById('inicioTurno').value = '';
     loadActiveTurn();
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }
@@ -698,10 +710,9 @@ async function guardarInicio() {
 // REGISTRO — FIN (con validación duplicados)
 // =====================================================
 async function guardarFin() {
-  const turno = document.getElementById('finTurno').value;
+  const turno = currentUser.turno || 'A';
   const mtc = document.getElementById('finMtc').value;
   const horo = parseFloat(document.getElementById('finHorometro').value);
-  if (!turno) return showToast('Selecciona el turno', 'error');
   if (!mtc) return showToast('Selecciona el montacargas', 'error');
   if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
 
@@ -736,7 +747,6 @@ async function guardarFin() {
     showToast(`✓ Fin registrado: ${mtc} = ${horo} (${horas} hrs uso)`, 'success');
     document.getElementById('finHorometro').value = '';
     document.getElementById('finMtc').value = '';
-    document.getElementById('finTurno').value = '';
     loadActiveTurn();
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }
@@ -745,11 +755,10 @@ async function guardarFin() {
 // REGISTRO — RECARGA DE GAS
 // =====================================================
 async function guardarGas() {
-  const turno = document.getElementById('gasTurno').value;
+  const turno = currentUser.turno || 'A';
   const mtc = document.getElementById('gasMtc').value;
   const horo = parseFloat(document.getElementById('gasHorometro').value);
   const obs = document.getElementById('gasObs').value.trim();
-  if (!turno) return showToast('Selecciona el turno', 'error');
   if (!mtc) return showToast('Selecciona el montacargas', 'error');
   if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
 
@@ -762,7 +771,6 @@ async function guardarGas() {
     document.getElementById('gasHorometro').value = '';
     document.getElementById('gasObs').value = '';
     document.getElementById('gasMtc').value = '';
-    document.getElementById('gasTurno').value = '';
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
 }
 
@@ -1047,19 +1055,20 @@ function exportExcel() {
 async function addUser() {
   const name = document.getElementById('addUserName').value.trim().toUpperCase();
   const pin = document.getElementById('addUserPin').value.trim();
+  const turno = document.getElementById('addUserTurno').value;
   const role = document.getElementById('addUserRole').value;
   if (!name) return showToast('Ingresa el nombre', 'error');
   if (!pin || pin.length < 3) return showToast('PIN mínimo 3 dígitos', 'error');
   if (usersList.find(u => u.name === name)) return showToast('Ese nombre ya existe', 'error');
 
   try {
-    const id = await DB.add('usuarios', { name, pin, role, active: true });
-    usersList.push({ id, name, pin, role, active: true });
+    const id = await DB.add('usuarios', { name, pin, turno, role, active: true });
+    usersList.push({ id, name, pin, turno, role, active: true });
     usersList.sort((a, b) => a.name.localeCompare(b.name));
     renderUserList(); populateLoginSelect();
     document.getElementById('addUserName').value = '';
     document.getElementById('addUserPin').value = '';
-    showToast(`Usuario ${name} agregado`, 'success');
+    showToast(`Usuario ${name} (Turno ${turno}) agregado`, 'success');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
@@ -1114,6 +1123,14 @@ function editUser(id) {
       <input type="text" id="editUserName" value="${user.name}" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:15px;outline:none;text-transform:uppercase;">
     </div>
     <div class="form-group">
+      <label>Turno Asignado</label>
+      <select id="editUserTurno" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:15px;">
+        <option value="A" ${(user.turno||'A') === 'A' ? 'selected' : ''}>Turno A (6:00am - 2:00pm)</option>
+        <option value="B" ${user.turno === 'B' ? 'selected' : ''}>Turno B (2:00pm - 10:00pm)</option>
+        <option value="C" ${user.turno === 'C' ? 'selected' : ''}>Turno C (10:00pm - 6:00am)</option>
+      </select>
+    </div>
+    <div class="form-group">
       <label>Rol</label>
       <select id="editUserRole" style="width:100%;padding:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:15px;">
         <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuario</option>
@@ -1128,17 +1145,19 @@ function editUser(id) {
   setTimeout(() => {
     document.getElementById('modalConfirmBtn').onclick = async () => {
       const newName = document.getElementById('editUserName').value.trim().toUpperCase();
+      const newTurno = document.getElementById('editUserTurno').value;
       const newRole = document.getElementById('editUserRole').value;
       if (!newName) return showToast('El nombre no puede estar vacío', 'error');
       const duplicado = usersList.find(u => u.name === newName && u.id !== id);
       if (duplicado) return showToast('Ese nombre ya existe', 'error');
       try {
-        await DB.update('usuarios', id, { name: newName, role: newRole });
+        await DB.update('usuarios', id, { name: newName, turno: newTurno, role: newRole });
         user.name = newName;
+        user.turno = newTurno;
         user.role = newRole;
         usersList.sort((a, b) => a.name.localeCompare(b.name));
         renderUserList(); populateLoginSelect(); closeModal();
-        showToast(`Usuario actualizado: ${newName}`, 'success');
+        showToast(`Usuario actualizado: ${newName} (Turno ${newTurno})`, 'success');
       } catch(e) { showToast('Error: ' + e.message, 'error'); }
     };
   }, 100);
@@ -1177,6 +1196,7 @@ function renderUserList() {
         <div>
           <div class="item-name">${u.name} ${u.role === 'admin' ? '<span style="font-size:10px;color:var(--accent-blue);font-weight:700;">[ADMIN]</span>' : ''}</div>
           <span class="item-status ${u.active ? 'active' : 'inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span>
+          <span style="font-size:10px;color:var(--accent-purple);font-weight:600;margin-left:4px;">Turno ${u.turno || 'A'}</span>
         </div>
         <div class="admin-item-actions">
           <button onclick="editUser('${u.id}')" title="Editar">✏️</button>
