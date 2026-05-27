@@ -615,11 +615,14 @@ function showMenu() {
   document.getElementById('menuUserName').textContent = currentUser.name;
   document.getElementById('menuUserAvatar').textContent = currentUser.name.charAt(0);
   document.getElementById('menuAdminCard').style.display = currentUser.role === 'admin' ? 'block' : 'none';
-  const t = getUserTurno();
-  if (t) {
-    document.getElementById('userTurnoText').textContent = turnoHorario(t);
+  if (isInduccion()) {
+    if (activeTurn) {
+      document.getElementById('userTurnoText').textContent = turnoHorario(activeTurn.turno);
+    } else {
+      document.getElementById('userTurnoText').textContent = 'Variable — selecciona turno al registrar inicio';
+    }
   } else {
-    document.getElementById('userTurnoText').textContent = 'Inducción — selecciona turno al registrar';
+    document.getElementById('userTurnoText').textContent = turnoHorario(currentUser.turno || 'A');
   }
   loadActiveTurn();
   goTo('screenMenu');
@@ -677,6 +680,7 @@ function getUserTurno() {
 
 function turnoHorario(t) {
   const h = { A: '6:00am - 2:00pm', B: '2:00pm - 10:00pm', C: '10:00pm - 6:00am' };
+  if (t === 'VAR' || !t) return 'Variable — selecciona turno al registrar';
   return 'Turno ' + t + ' (' + (h[t] || '') + ')';
 }
 
@@ -691,22 +695,24 @@ function goTo(screenId) {
 
   if (screenId === 'screenInicio') {
     if (induccion) {
+      // Mostrar selector, ocultar display fijo
       document.getElementById('inicioTurnoFijo').style.display = 'none';
       document.getElementById('inicioTurnoSelect').style.display = 'block';
     } else {
+      // Mostrar display fijo, ocultar selector
       document.getElementById('inicioTurnoFijo').style.display = 'block';
       document.getElementById('inicioTurnoSelect').style.display = 'none';
       document.getElementById('inicioTurnoDisplay').textContent = turnoHorario(userTurno);
     }
   }
   if (screenId === 'screenFin') {
-    const t = userTurno || (activeTurn ? activeTurn.turno : '?');
-    document.getElementById('finTurnoDisplay').textContent = t ? turnoHorario(t) : 'Registra inicio primero';
+    const t = induccion ? (activeTurn ? activeTurn.turno : null) : userTurno;
+    document.getElementById('finTurnoDisplay').textContent = t ? turnoHorario(t) : '⚠️ Registra inicio de turno primero';
     if (activeTurn) document.getElementById('finMtc').value = activeTurn.montacargas;
   }
   if (screenId === 'screenGas') {
-    const t = userTurno || (activeTurn ? activeTurn.turno : '?');
-    document.getElementById('gasTurnoDisplay').textContent = t ? turnoHorario(t) : 'Registra inicio primero';
+    const t = induccion ? (activeTurn ? activeTurn.turno : null) : userTurno;
+    document.getElementById('gasTurnoDisplay').textContent = t ? turnoHorario(t) : '⚠️ Registra inicio de turno primero';
     if (activeTurn) document.getElementById('gasMtc').value = activeTurn.montacargas;
   }
 }
