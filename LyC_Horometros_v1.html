@@ -298,9 +298,13 @@ body {
   <div class="back-row" onclick="goTo('screenMenu')">← Volver al menú</div>
   <div class="section-title">▶️ Inicio de Turno</div>
   <div class="section-subtitle">Registra el horómetro inicial del montacargas</div>
-  <div class="form-group">
+  <div class="form-group" id="inicioTurnoFijo">
     <label>Turno Asignado</label>
     <div id="inicioTurnoDisplay" style="padding:12px 14px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:var(--radius);font-weight:600;color:var(--accent-blue);font-size:15px;"></div>
+  </div>
+  <div class="form-group" id="inicioTurnoSelect" style="display:none;">
+    <label>Selecciona tu Turno</label>
+    <select id="inicioTurno"><option value="">-- Seleccionar --</option><option value="A">Turno A (6:00am - 2:00pm)</option><option value="B">Turno B (2:00pm - 10:00pm)</option><option value="C">Turno C (10:00pm - 6:00am)</option></select>
   </div>
   <div class="form-group">
     <label>Montacargas</label>
@@ -319,7 +323,7 @@ body {
   <div class="section-title">⏹️ Fin de Turno</div>
   <div class="section-subtitle">Registra el horómetro final del montacargas</div>
   <div class="form-group">
-    <label>Turno Asignado</label>
+    <label>Turno</label>
     <div id="finTurnoDisplay" style="padding:12px 14px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius);font-weight:600;color:var(--accent-green);font-size:15px;"></div>
   </div>
   <div class="form-group">
@@ -339,7 +343,7 @@ body {
   <div class="section-title">⛽ Recarga de Gas</div>
   <div class="section-subtitle">Registra el horómetro al momento de recargar el balón</div>
   <div class="form-group">
-    <label>Turno Asignado</label>
+    <label>Turno</label>
     <div id="gasTurnoDisplay" style="padding:12px 14px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius);font-weight:600;color:var(--accent-orange);font-size:15px;"></div>
   </div>
   <div class="form-group">
@@ -394,10 +398,11 @@ body {
     <div class="add-row">
       <input type="text" id="addUserName" placeholder="Nombre completo" style="text-transform:uppercase">
       <input type="text" id="addUserPin" placeholder="PIN" maxlength="6" style="width:80px;" inputmode="numeric">
-      <select id="addUserTurno" style="width:80px; padding:10px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-size:13px;">
+      <select id="addUserTurno" style="width:95px; padding:10px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-size:13px;">
         <option value="A">Turno A</option>
         <option value="B">Turno B</option>
         <option value="C">Turno C</option>
+        <option value="VAR">Variable</option>
       </select>
       <select id="addUserRole" style="width:100px; padding:10px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-primary); font-size:13px;">
         <option value="user">Usuario</option>
@@ -610,9 +615,12 @@ function showMenu() {
   document.getElementById('menuUserName').textContent = currentUser.name;
   document.getElementById('menuUserAvatar').textContent = currentUser.name.charAt(0);
   document.getElementById('menuAdminCard').style.display = currentUser.role === 'admin' ? 'block' : 'none';
-  const t = currentUser.turno || 'A';
-  const horarios = { A: '6:00am - 2:00pm', B: '2:00pm - 10:00pm', C: '10:00pm - 6:00am' };
-  document.getElementById('userTurnoText').textContent = 'Turno ' + t + ' (' + horarios[t] + ')';
+  const t = getUserTurno();
+  if (t) {
+    document.getElementById('userTurnoText').textContent = turnoHorario(t);
+  } else {
+    document.getElementById('userTurnoText').textContent = 'Inducción — selecciona turno al registrar';
+  }
   loadActiveTurn();
   goTo('screenMenu');
 }
@@ -652,23 +660,53 @@ async function loadActiveTurn() {
   }
 }
 
+// Helper: detectar si es usuario con turno variable (inducción o similar)
+function isInduccion() {
+  if (!currentUser) return false;
+  return currentUser.turno === 'VAR' || !currentUser.turno;
+}
+
+function getUserTurno() {
+  if (isInduccion()) {
+    // Para inducción, usar el turno que seleccionó en inicio o el del activeTurn
+    if (activeTurn) return activeTurn.turno;
+    return null; // debe seleccionar
+  }
+  return currentUser.turno || 'A';
+}
+
+function turnoHorario(t) {
+  const h = { A: '6:00am - 2:00pm', B: '2:00pm - 10:00pm', C: '10:00pm - 6:00am' };
+  return 'Turno ' + t + ' (' + (h[t] || '') + ')';
+}
+
 function goTo(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
   if (screenId === 'screenHistorial') loadHistorial();
   if (screenId === 'screenAdmin') { renderUserList(); renderMtcList(); }
-  // Mostrar turno asignado en formularios
-  const userTurno = currentUser ? (currentUser.turno || 'A') : 'A';
-  const turnoLabel = 'Turno ' + userTurno + (userTurno === 'A' ? ' (6:00am - 2:00pm)' : userTurno === 'B' ? ' (2:00pm - 10:00pm)' : ' (10:00pm - 6:00am)');
+
+  const induccion = isInduccion();
+  const userTurno = getUserTurno();
+
   if (screenId === 'screenInicio') {
-    document.getElementById('inicioTurnoDisplay').textContent = turnoLabel;
+    if (induccion) {
+      document.getElementById('inicioTurnoFijo').style.display = 'none';
+      document.getElementById('inicioTurnoSelect').style.display = 'block';
+    } else {
+      document.getElementById('inicioTurnoFijo').style.display = 'block';
+      document.getElementById('inicioTurnoSelect').style.display = 'none';
+      document.getElementById('inicioTurnoDisplay').textContent = turnoHorario(userTurno);
+    }
   }
   if (screenId === 'screenFin') {
-    document.getElementById('finTurnoDisplay').textContent = turnoLabel;
+    const t = userTurno || (activeTurn ? activeTurn.turno : '?');
+    document.getElementById('finTurnoDisplay').textContent = t ? turnoHorario(t) : 'Registra inicio primero';
     if (activeTurn) document.getElementById('finMtc').value = activeTurn.montacargas;
   }
   if (screenId === 'screenGas') {
-    document.getElementById('gasTurnoDisplay').textContent = turnoLabel;
+    const t = userTurno || (activeTurn ? activeTurn.turno : '?');
+    document.getElementById('gasTurnoDisplay').textContent = t ? turnoHorario(t) : 'Registra inicio primero';
     if (activeTurn) document.getElementById('gasMtc').value = activeTurn.montacargas;
   }
 }
@@ -677,7 +715,13 @@ function goTo(screenId) {
 // REGISTRO — INICIO (con validación duplicados)
 // =====================================================
 async function guardarInicio() {
-  const turno = currentUser.turno || 'A';
+  let turno;
+  if (isInduccion()) {
+    turno = document.getElementById('inicioTurno').value;
+    if (!turno) return showToast('Selecciona tu turno', 'error');
+  } else {
+    turno = currentUser.turno || 'A';
+  }
   const mtc = document.getElementById('inicioMtc').value;
   const horo = parseFloat(document.getElementById('inicioHorometro').value);
   if (!mtc) return showToast('Selecciona el montacargas', 'error');
@@ -710,7 +754,8 @@ async function guardarInicio() {
 // REGISTRO — FIN (con validación duplicados)
 // =====================================================
 async function guardarFin() {
-  const turno = currentUser.turno || 'A';
+  const turno = getUserTurno() || (activeTurn ? activeTurn.turno : null);
+  if (!turno) return showToast('No se encontró turno activo. Registra inicio primero.', 'error');
   const mtc = document.getElementById('finMtc').value;
   const horo = parseFloat(document.getElementById('finHorometro').value);
   if (!mtc) return showToast('Selecciona el montacargas', 'error');
@@ -755,7 +800,8 @@ async function guardarFin() {
 // REGISTRO — RECARGA DE GAS
 // =====================================================
 async function guardarGas() {
-  const turno = currentUser.turno || 'A';
+  const turno = getUserTurno() || (activeTurn ? activeTurn.turno : null);
+  if (!turno) return showToast('No se encontró turno activo. Registra inicio primero.', 'error');
   const mtc = document.getElementById('gasMtc').value;
   const horo = parseFloat(document.getElementById('gasHorometro').value);
   const obs = document.getElementById('gasObs').value.trim();
@@ -1128,6 +1174,7 @@ function editUser(id) {
         <option value="A" ${(user.turno||'A') === 'A' ? 'selected' : ''}>Turno A (6:00am - 2:00pm)</option>
         <option value="B" ${user.turno === 'B' ? 'selected' : ''}>Turno B (2:00pm - 10:00pm)</option>
         <option value="C" ${user.turno === 'C' ? 'selected' : ''}>Turno C (10:00pm - 6:00am)</option>
+        <option value="VAR" ${user.turno === 'VAR' ? 'selected' : ''}>Variable (elige al registrar)</option>
       </select>
     </div>
     <div class="form-group">
@@ -1190,13 +1237,28 @@ async function deleteUser(id) {
 function renderUserList() {
   const container = document.getElementById('userList');
   container.innerHTML = '';
-  usersList.forEach(u => {
+  const turnoOrder = { A: 1, B: 2, C: 3, VAR: 4 };
+  const sorted = [...usersList].sort((a, b) => {
+    const ta = turnoOrder[a.turno] || turnoOrder['A'];
+    const tb = turnoOrder[b.turno] || turnoOrder['A'];
+    if (ta !== tb) return ta - tb;
+    return a.name.localeCompare(b.name);
+  });
+  let lastTurno = '';
+  sorted.forEach(u => {
+    const uTurno = u.turno || 'A';
+    const turnoLabel = uTurno === 'VAR' ? 'Variable' : uTurno;
+    const sectionLabel = uTurno === 'VAR' ? 'TURNO VARIABLE (Eligen al registrar)' : 'TURNO ' + uTurno;
+    if (uTurno !== lastTurno) {
+      container.innerHTML += `<div style="padding:8px 0 4px;font-size:11px;font-weight:700;color:var(--accent-purple);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);margin-top:${lastTurno?'12px':'0'};">${sectionLabel}</div>`;
+      lastTurno = uTurno;
+    }
     container.innerHTML += `
       <div class="admin-item">
         <div>
           <div class="item-name">${u.name} ${u.role === 'admin' ? '<span style="font-size:10px;color:var(--accent-blue);font-weight:700;">[ADMIN]</span>' : ''}</div>
           <span class="item-status ${u.active ? 'active' : 'inactive'}">${u.active ? 'Activo' : 'Inactivo'}</span>
-          <span style="font-size:10px;color:var(--accent-purple);font-weight:600;margin-left:4px;">Turno ${u.turno || 'A'}</span>
+          <span style="font-size:10px;color:${uTurno==='VAR'?'var(--accent-orange)':'var(--accent-purple)'};font-weight:600;margin-left:4px;">${uTurno==='VAR'?'Variable':'Turno '+turnoLabel}</span>
         </div>
         <div class="admin-item-actions">
           <button onclick="editUser('${u.id}')" title="Editar">✏️</button>
