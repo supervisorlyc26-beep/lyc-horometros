@@ -511,6 +511,7 @@ const DB = {
 let currentUser = null;
 let montacargasList = [];
 let usersList = [];
+let saving = false; // Anti doble-tap
 let histData = { turnos: [], gas: [] }; // para exportar
 
 const DEFAULT_MTC = ['LOU192','LOU193','LOU194','LOU195','LOT237','LOT239','LOT2310','ANT233','M257'];
@@ -549,6 +550,24 @@ async function loadMontacargas() {
     for (const placa of DEFAULT_MTC) {
       const id = await DB.add('montacargas', { placa, active: true });
       montacargasList.push({ id, placa, active: true });
+    }
+  } else {
+    // Deduplicar: si hay placas repetidas, eliminar las extras
+    const seen = {};
+    const duplicates = [];
+    montacargasList.forEach(m => {
+      if (seen[m.placa]) {
+        duplicates.push(m.id);
+      } else {
+        seen[m.placa] = true;
+      }
+    });
+    for (const dupId of duplicates) {
+      try { await DB.remove('montacargas', dupId); } catch(e) {}
+    }
+    if (duplicates.length > 0) {
+      montacargasList = montacargasList.filter(m => !duplicates.includes(m.id));
+      console.log('Eliminados ' + duplicates.length + ' montacargas duplicados');
     }
   }
   montacargasList.sort((a, b) => a.placa.localeCompare(b.placa));
@@ -636,12 +655,12 @@ async function loadActiveTurn() {
   const userTurno = currentUser.turno || 'A';
   try {
     const inicios = await DB.query('registros_horometro', [
-      { field: 'fecha', value: todayStr() },
+      { field: 'fecha', value: getFechaRegistro() },
       { field: 'usuario', value: currentUser.name },
       { field: 'tipo', value: 'inicio' }
     ]);
     const fines = await DB.query('registros_horometro', [
-      { field: 'fecha', value: todayStr() },
+      { field: 'fecha', value: getFechaRegistro() },
       { field: 'usuario', value: currentUser.name },
       { field: 'tipo', value: 'fin' }
     ]);
@@ -721,6 +740,7 @@ function goTo(screenId) {
 // REGISTRO — INICIO (con validación duplicados)
 // =====================================================
 async function guardarInicio() {
+  if (saving) return;
   let turno;
   if (isInduccion()) {
     turno = document.getElementById('inicioTurno').value;
@@ -733,33 +753,37 @@ async function guardarInicio() {
   if (!mtc) return showToast('Selecciona el montacargas', 'error');
   if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
 
+  saving = true;
   try {
     // Validar duplicado
     const existentes = await DB.query('registros_horometro', [
-      { field: 'fecha', value: todayStr() },
+      { field: 'fecha', value: getFechaRegistro() },
       { field: 'montacargas', value: mtc },
       { field: 'turno', value: turno },
       { field: 'tipo', value: 'inicio' }
     ]);
     if (existentes.length > 0) {
+      saving = false;
       return showToast(`Ya existe un inicio para ${mtc} en turno ${turno} hoy (${existentes[0].horometro}). Registre el fin.`, 'error');
     }
 
     await DB.add('registros_horometro', {
       tipo: 'inicio', turno, montacargas: mtc, horometro: horo,
-      usuario: currentUser.name, fecha: todayStr(), createdAt: new Date().toISOString()
+      usuario: currentUser.name, fecha: getFechaRegistro(), createdAt: new Date().toISOString()
     });
     showToast(`✓ Inicio registrado: ${mtc} = ${horo}`, 'success');
     document.getElementById('inicioHorometro').value = '';
     document.getElementById('inicioMtc').value = '';
     loadActiveTurn();
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
+  saving = false;
 }
 
 // =====================================================
 // REGISTRO — FIN (con validación duplicados)
 // =====================================================
 async function guardarFin() {
+  if (saving) return;
   const turno = getUserTurno() || (activeTurn ? activeTurn.turno : null);
   if (!turno) return showToast('No se encontró turno activo. Registra inicio primero.', 'error');
   const mtc = document.getElementById('finMtc').value;
@@ -767,32 +791,36 @@ async function guardarFin() {
   if (!mtc) return showToast('Selecciona el montacargas', 'error');
   if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
 
+  saving = true;
+
   try {
     // Validar duplicado fin
     const finesExist = await DB.query('registros_horometro', [
-      { field: 'fecha', value: todayStr() },
+      { field: 'fecha', value: getFechaRegistro() },
       { field: 'montacargas', value: mtc },
       { field: 'turno', value: turno },
       { field: 'tipo', value: 'fin' }
     ]);
     if (finesExist.length > 0) {
+      saving = false;
       return showToast(`Ya existe un fin para ${mtc} en turno ${turno} hoy (${finesExist[0].horometro}).`, 'error');
     }
 
     // Validar contra inicio
     const inicios = await DB.query('registros_horometro', [
-      { field: 'fecha', value: todayStr() },
+      { field: 'fecha', value: getFechaRegistro() },
       { field: 'montacargas', value: mtc },
       { field: 'turno', value: turno },
       { field: 'tipo', value: 'inicio' }
     ]);
     if (inicios.length > 0 && horo < inicios[inicios.length - 1].horometro) {
+      saving = false;
       return showToast(`El horómetro final (${horo}) no puede ser menor al inicio (${inicios[inicios.length - 1].horometro})`, 'error');
     }
 
     await DB.add('registros_horometro', {
       tipo: 'fin', turno, montacargas: mtc, horometro: horo,
-      usuario: currentUser.name, fecha: todayStr(), createdAt: new Date().toISOString()
+      usuario: currentUser.name, fecha: getFechaRegistro(), createdAt: new Date().toISOString()
     });
     const horas = inicios.length > 0 ? (horo - inicios[inicios.length - 1].horometro).toFixed(2) : '?';
     showToast(`✓ Fin registrado: ${mtc} = ${horo} (${horas} hrs uso)`, 'success');
@@ -800,12 +828,14 @@ async function guardarFin() {
     document.getElementById('finMtc').value = '';
     loadActiveTurn();
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
+  saving = false;
 }
 
 // =====================================================
 // REGISTRO — RECARGA DE GAS
 // =====================================================
 async function guardarGas() {
+  if (saving) return;
   const turno = getUserTurno() || (activeTurn ? activeTurn.turno : null);
   if (!turno) return showToast('No se encontró turno activo. Registra inicio primero.', 'error');
   const mtc = document.getElementById('gasMtc').value;
@@ -814,16 +844,18 @@ async function guardarGas() {
   if (!mtc) return showToast('Selecciona el montacargas', 'error');
   if (isNaN(horo) || horo < 0) return showToast('Ingresa un horómetro válido', 'error');
 
+  saving = true;
   try {
     await DB.add('registros_gas', {
       montacargas: mtc, turno, horometro: horo, observacion: obs,
-      usuario: currentUser.name, fecha: todayStr(), createdAt: new Date().toISOString()
+      usuario: currentUser.name, fecha: getFechaRegistro(), createdAt: new Date().toISOString()
     });
     showToast(`✓ Recarga registrada: ${mtc} = ${horo}`, 'success');
     document.getElementById('gasHorometro').value = '';
     document.getElementById('gasObs').value = '';
     document.getElementById('gasMtc').value = '';
   } catch(e) { showToast('Error al guardar: ' + e.message, 'error'); }
+  saving = false;
 }
 
 // =====================================================
@@ -1524,6 +1556,29 @@ function switchAdminTab(tab, btn) {
 function todayStr() {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Para Turno C: si es entre 12am-6am, la fecha operativa es AYER
+function getFechaRegistro() {
+  const now = new Date();
+  const hour = now.getHours();
+  const turno = currentUser ? (currentUser.turno || 'A') : 'A';
+  
+  // Si es Turno C y es entre medianoche y 9am, usar fecha de ayer
+  if (turno === 'C' && hour >= 0 && hour < 9) {
+    const ayer = new Date(now);
+    ayer.setDate(ayer.getDate() - 1);
+    return ayer.getFullYear() + '-' + String(ayer.getMonth() + 1).padStart(2, '0') + '-' + String(ayer.getDate()).padStart(2, '0');
+  }
+  
+  // También para usuarios VAR que eligieron Turno C en su activeTurn
+  if ((turno === 'VAR' || !currentUser.turno) && activeTurn && activeTurn.turno === 'C' && hour >= 0 && hour < 9) {
+    const ayer = new Date(now);
+    ayer.setDate(ayer.getDate() - 1);
+    return ayer.getFullYear() + '-' + String(ayer.getMonth() + 1).padStart(2, '0') + '-' + String(ayer.getDate()).padStart(2, '0');
+  }
+  
+  return todayStr();
 }
 
 function showToast(msg, type = 'success') {
