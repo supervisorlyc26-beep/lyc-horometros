@@ -755,18 +755,6 @@ async function guardarInicio() {
 
   saving = true;
   try {
-    // Validar duplicado
-    const existentes = await DB.query('registros_horometro', [
-      { field: 'fecha', value: getFechaRegistro() },
-      { field: 'montacargas', value: mtc },
-      { field: 'turno', value: turno },
-      { field: 'tipo', value: 'inicio' }
-    ]);
-    if (existentes.length > 0) {
-      saving = false;
-      return showToast(`Ya existe un inicio para ${mtc} en turno ${turno} hoy (${existentes[0].horometro}). Registre el fin.`, 'error');
-    }
-
     await DB.add('registros_horometro', {
       tipo: 'inicio', turno, montacargas: mtc, horometro: horo,
       usuario: currentUser.name, fecha: getFechaRegistro(), createdAt: new Date().toISOString()
@@ -794,18 +782,6 @@ async function guardarFin() {
   saving = true;
 
   try {
-    // Validar duplicado fin
-    const finesExist = await DB.query('registros_horometro', [
-      { field: 'fecha', value: getFechaRegistro() },
-      { field: 'montacargas', value: mtc },
-      { field: 'turno', value: turno },
-      { field: 'tipo', value: 'fin' }
-    ]);
-    if (finesExist.length > 0) {
-      saving = false;
-      return showToast(`Ya existe un fin para ${mtc} en turno ${turno} hoy (${finesExist[0].horometro}).`, 'error');
-    }
-
     // Validar contra inicio
     const inicios = await DB.query('registros_horometro', [
       { field: 'fecha', value: getFechaRegistro() },
